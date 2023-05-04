@@ -1,0 +1,169 @@
+---
+title: "Titanic Survived"
+output: 
+  flexdashboard::flex_dashboard:
+    source_code: embed
+    theme: 
+      bootswatch: litera
+    orientation: columns
+    vertical_layout: fill
+    navbar:
+      - { title: "Author", href: "https://lmj98.netlify.app/" }
+      - { icon: "fa-solid fa-book", href: "https://rpubs.com/Chris622/kaggle-titanic-survival" }
+    social: [ "twitter", "facebook", "menu" ]
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(knitr)
+# Install thematic and un-comment for themed static plots (i.e., ggplot2)
+# thematic::thematic_rmd()
+library(tidyverse)
+library(DT)
+test <- read.csv('titanic/test.csv')
+train <- read.csv('titanic/train.csv')
+# length of train set 
+Lt <- dim(train)[1]
+# combine train and test
+full <- bind_rows(train,test)
+# factor variables
+cols <- c('Survived','Pclass','Sex','Embarked')
+for (i in cols){
+  full[,i] <- as.factor(full[,i])
+}
+# Extract title from names
+full <- full%>%
+  mutate(Title=gsub('(.*, )|(\\..*)', '', Name))
+full$Title <- fct_recode(full$Title,Miss="Mlle",Miss='Ms',Mrs='Mme')%>%
+  fct_lump_min(min=8)
+# calculate Fsize 
+full <- full%>%mutate(Fsize=SibSp+Parch+1)
+full <- full%>%mutate(FsizeG=case_when(
+  Fsize==1~"single",
+  Fsize>1&Fsize<5~"small",
+  Fsize>=5~"large"))
+```
+
+Raw data {data-icon="fa-table" data-orientation=rows}
+=================
+Column {.sidebar data-width=300}
+--------------------------------------------------
+```{r}
+numericInput(
+  "maxrows", label = "Number of data rows:",
+   value = 5
+)
+```
+> This page shows the raw data of passengers on Titanic. See more details at [Kaggle](https://www.kaggle.com/competitions/titanic).
+
+> The **train data** contain the *Survived* state (1 for True and 0 for False). The *Survived* of passengers in **test data** should be predicted by the model.
+
+> New variables such as Title, Family Size (Fsize&FszieG) are calculated from raw data. See *full data*.
+
+> See data analysis and modelling details at [my Rpubs](https://rpubs.com/Chris622/kaggle-titanic-survival). 
+
+Column {data-width=700 .tabset}
+-----------------------------------------------------------------------
+### train data
+
+```{r}
+DT::renderDataTable({
+  DT::datatable(train, options = list(
+    pageLength = input$maxrows
+  ))
+})
+```
+
+### test data
+```{r}
+DT::renderDataTable({
+  DT::datatable(test, options = list(
+    pageLength = input$maxrows
+  ))
+})
+```
+
+### full data
+```{r}
+DT::renderDataTable({
+  DT::datatable(full, options = list(
+    pageLength = input$maxrows
+  ))
+})
+```
+
+
+Visualization {data-icon="fa-signal"}
+====================
+Column {.sidebar data-width=300}
+--------------------------------------------------
+```{r}
+selectInput(
+  "X", label = "Category variable:",
+  choices = c("Pclass", "Sex", "SibSp", "Parch","Fsize","FsizeG","Embarked","Title"), selected = "Pclass"
+)
+selectInput(
+  "Y", label = "Continous variable:",
+  choices = c("Age", "Fare"), selected = "Age"
+)
+
+sliderInput(
+  "n_breaks", label = "Number of bins:",
+  min = 5, max = 25, value = 10, step = 1
+)
+```
+> This page shows the relationship between Variables and *Survived*.
+
+> See data analysis and modelling details at [my Rpubs](https://rpubs.com/Chris622/kaggle-titanic-survival). 
+
+Category Figures {data-width=600 .tabset}
+--------------------------------------------------
+> *`r shiny::renderText(input$X)`* VS *Survived*.
+
+### Count
+```{r}
+renderPlot(ggplot(full[1:Lt,])+geom_bar(aes_string(x=input$X,fill='Survived'))+theme(legend.position = 'bottom'))
+```
+
+### Frequency
+```{r}
+renderPlot(ggplot(full[1:Lt,])+geom_bar(aes_string(x=input$X,fill='Survived'),position = 'fill')+
+  labs(y='Frequency')+theme(legend.position = 'bottom'))
+```
+
+Continuous Figures {data-width=600 .tabset}
+--------------------------------------------------
+> *`r shiny::renderText(input$Y)`* VS *Survived*.
+
+### Count
+```{r}
+renderPlot(ggplot(full[1:Lt,])+geom_histogram(aes_string(x=input$Y,fill='Survived'),bins =as.integer(input$n_breaks))+theme(legend.position = 'bottom'))
+```
+### Frequency
+```{r}
+renderPlot(ggplot(full[1:Lt,])+geom_histogram(aes_string(x=input$Y,fill='Survived'),position = 'fill',bins =as.integer(input$n_breaks))+
+  labs(y='Frequency')+theme(legend.position = 'bottom'))
+```
+
+Tables
+----------------------------------
+### 
+> *`r shiny::renderText(input$X)`* VS *Survived*.
+
+```{r}
+renderTable({
+  df <- data.frame(table(full[,input$X],full[,'Survived']))
+  colnames(df) <-  c(input$X,'Survivied','Count')
+  df})
+```
+
+### 
+> *`r shiny::renderText(input$Y)`* VS *Survived*.
+
+```{r}
+renderTable({
+  df <- data.frame(table(cut_number(full[,input$Y],as.integer(input$n_breaks)),full[,'Survived']))
+  colnames(df) <- c(input$Y,'Survivied','Count')
+  df})
+```

@@ -1,0 +1,48 @@
+---
+title: 'Kaggle: Titanic Survival'
+author: "lmj"
+date: "2023-05-03"
+output: 
+  bookdown::gitbook:
+    split_by: none
+  bookdown::pdf_document2:
+    keep_tex: true
+  bookdown::word_document2:
+    toc: true
+---
+本内容为Titanic生存模型的建立，更多内容详见[Kaggle](https://www.kaggle.com/competitions/titanic)
+
+# Read data
++ 采用`read.csv`读取数据，包括训练集`train.csv`和测试集`test.csv`
+```{r}
+library(tidyverse)
+test <- read.csv('titanic/test.csv')
+train <- read.csv('titanic/train.csv')
+```
+
+# Data washing
++ 合并train和test，并用glimpse查看数据内容
+```{r}
+# bind train and test
+full <- bind_rows(train,test)
+# glimpse data
+glimpse(full)
+```
+
+
+# 查看缺失值
+colSums(is.na(full))#Age有263个缺失值，Fare有一个缺失值
+colSums(full=="")#Embarked有两个缺失值，Cabin有1014个缺失值
+full$Embarked[full$Embarked==""] <- "C"#为两个空的Embarked赋值C
+
+# 查看数据唯一值长度（可以转换为Factor的变量）
+map_dbl(full,~length(unique(.)))
+cols <- c('Survived','Pclass','Sex','Embarked')
+for (i in cols){
+  full[,i] <- as.factor(full[,i])
+}
+str(full)
+Lt <- dim(train)[1]#训练集长度
+
+```
+
